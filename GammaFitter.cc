@@ -1,0 +1,247 @@
+
+#include "GammaFitter.hh"
+
+GammaFitter::GammaFitter() 
+{ 
+    fCanvas = NULL;
+    SetNextGammaFit(3,"24Na");
+    InitializeParameters(); 
+} 
+
+GammaFitter::~GammaFitter() {}
+
+GammaFitter::GammaFitter(int cal, std::string source)
+{
+    fCanvas = NULL;
+    SetNextGammaFit(cal,source);
+    InitializeParameters();
+}
+
+GammaFitter::GammaFitter(int cal, std::string source1, std::string source2)
+{
+    fCanvas = NULL;
+    SetNextGammaFit(cal,source1);
+    SetNextGammaFit(cal,source2);
+    InitializeParameters();
+}
+
+GammaFitter::GammaFitter(int cal, std::string source1, std::string source2, std::string source3)
+{
+    fCanvas = NULL;
+    SetNextGammaFit(cal,source1);
+    SetNextGammaFit(cal,source2);
+    SetNextGammaFit(cal,source3);
+    InitializeParameters();
+}
+
+void GammaFitter::InitializeParameters()
+{
+    fParameters[0] = 0.1;
+    fParameters[1] = 0.05;
+    fParameters[2] = 1e-4;
+    fParameters[3] = 0.6;
+    fParameters[4] = 0;
+    
+    fSum = 0;
+    fSum2 = 0;
+}
+
+void GammaFitter::Draw()
+{
+    if(!fCanvas) {
+        fCanvas = new TCanvas();
+        if(GetNumberOfGammaFits() == 1) fCanvas->Divide(1);
+        else if(GetNumberOfGammaFits() == 2) fCanvas->Divide(2);
+        else if(GetNumberOfGammaFits() == 3) fCanvas->Divide(3);
+        else if(GetNumberOfGammaFits() == 4) fCanvas->Divide(2,2);
+        else { std::cout << "more/less GammaFits that I know how to draw!" << std::endl; return; }
+    }
+    for(int i=0; i<GetNumberOfGammaFits(); i++) {
+        fCanvas->cd(i+1);
+        gPad->Clear();
+        fGammaFitVector.at(i).Draw();
+        gPad->Update();
+    }
+}
+
+void GammaFitter::Run(double A, double B, double C, double gain, double offset)
+{
+    SetParameters(A,B,C,gain,offset);
+    PrintParameters();
+    if(!fCanvas) {
+        fCanvas = new TCanvas();
+        if(GetNumberOfGammaFits() == 1) fCanvas->Divide(1);
+        else if(GetNumberOfGammaFits() == 2) fCanvas->Divide(2);
+        else if(GetNumberOfGammaFits() == 3) fCanvas->Divide(3);
+        else if(GetNumberOfGammaFits() == 4) fCanvas->Divide(2,2);
+        else { std::cout << "more/less GammaFits that I know how to draw!" << std::endl; return; }
+    }
+    for(int i=0; i<GetNumberOfGammaFits(); i++) {
+        SortRun(i);
+        fCanvas->cd(i+1);
+        gPad->Clear();
+        fGammaFitVector.at(i).Draw();
+        gPad->Update();
+    }
+    fSum = 0.;
+    fSum2 = 0.;
+    for(int i=0;i<GetNumberOfGammaFits();i++) fSum += fGammaFitVector.at(i).DoChi2();
+    for(int i=0;i<GetNumberOfGammaFits();i++) fSum2 += fGammaFitVector.at(i).DoChi2() * fGammaFitVector.at(i).DoChi2();
+    fSum /= double(GetNumberOfGammaFits());
+    fSum2 /= double(GetNumberOfGammaFits());
+    std::cout << "sum(chi2)/nfits = " << fSum << " | sum((chi2)^2)/nfits = " << fSum2 << std::endl;
+}
+
+void GammaFitter::DrawToFile(std::string input)
+{
+    std::cout << "drawing all GammaFits to output file \"" << input << "\" ... " << std::flush;
+    TCanvas * out = new TCanvas();
+    for(int i=0; i<GetNumberOfGammaFits(); i++) 
+    {
+        std::string name = input;
+        fGammaFitVector.at(i).Draw();
+        if(i==0) {
+            name += "(";
+            out->Print(name.c_str(),"pdf");
+        }
+        else if(i==GetNumberOfGammaFits()-1) {
+            name += ")";
+            out->Print(name.c_str(),"pdf");
+        }
+        else out->Print(name.c_str(),"pdf");
+    }
+    delete out;
+    std::cout << " done!" << std::endl;
+
+}
+
+void GammaFitter::NelderMead(double A, double B, double C, double gain, double offset, int itermax)
+{
+    std::cout << "starting Nelder Mead method... " << std::endl;
+    
+    //double A_inc = 0.2;
+    //double B_inc = 0.2;
+    //double C_inc = 1e-4;
+    //double gain_inc = 0.5;
+    //double offset_inc = 100;
+    double A_inc = 0.02;
+    double B_inc = 0.02;
+    double C_inc = 0.001;
+    double gain_inc = 0.01;
+    double offset_inc = 5;
+
+    //    ( A   , B    , C     , a1   , a2  , a3  , a4   , carbon)
+    vec v1(A,B,C,gain,offset);
+    vec v2(v1); v2.set(0,v2.at(0)+A_inc);
+    vec v3(v1); v3.set(1,v3.at(1)+B_inc);
+    vec v4(v1); v4.set(2,v4.at(2)+C_inc);
+    vec v5(v1); v5.set(3,v5.at(3)+gain_inc);
+    vec v6(v1); v6.set(4,v6.at(4)+offset_inc);
+
+    std::vector<vec> nmvec;
+    nmvec.push_back(v1);
+    nmvec.push_back(v2);
+    nmvec.push_back(v3);
+    nmvec.push_back(v4);
+    nmvec.push_back(v5);
+    nmvec.push_back(v6);
+
+    std::cout << "calculating chi2's for the initial simplex..." << std::endl;
+    std::vector<double> chi2vec;
+    for(int i=0; i<int(nmvec.size()); i++) {
+        std::cout << "simplex " << i+1 << std::endl;
+        SetParameters(nmvec.at(i).par_array());         
+        SortAllRuns();
+        chi2vec.push_back(DoChi2());
+    } 
+        
+    std::cout << "starting the Nelder-Mead iterations..." << std::endl;
+    //////////////////////////////////////////////////////////////////
+    for(int iter=1; iter<=itermax; iter++) {
+
+        std::vector<vec> temp_par;
+        std::vector<double> temp_chi2;
+        temp_par.resize(6);
+        temp_chi2.resize(6);
+
+        // reordering...
+        double test = 1e100;
+        int val = 0;
+        for(int i=0; i<6; i++) {
+            for(int j=0; j<6; j++) {
+                if(chi2vec.at(j) < test) {
+                    test = chi2vec.at(j);
+                    temp_chi2.at(i) = test;
+                    temp_par.at(i) = nmvec.at(j);
+                    val = j;
+                }
+            }
+            chi2vec.at(val) = 1e100;
+            test = 1e100;
+        }
+        nmvec = temp_par;
+        chi2vec = temp_chi2;
+
+        std::cout << "printing the reordered variables..." << std::endl;
+        for(int i=0; i<6; i++) {
+            std::cout << " chi2 = " << chi2vec.at(i);
+            std::cout << " pars = ";
+            for(int j=0; j<4; j++) std::cout << nmvec.at(i).at(j) << " , "; std::cout << nmvec.at(i).at(4);
+            std::cout << std::endl;
+        }
+        
+    
+        vec B(nmvec.at(0)); double B_chi2 = chi2vec.at(0);
+        vec G(nmvec.at(1)); double G_chi2 = chi2vec.at(1);
+        vec W(nmvec.at(5)); double W_chi2 = chi2vec.at(5);
+        vec M = B.midpoint(G); double M_chi2 = nm_val(M);
+        vec R = M.scalar_multiply(2.); R.subtract(W); double R_chi2 = nm_val(R);
+        vec E = R.scalar_multiply(2.); E.subtract(M); double E_chi2 = 0;
+        vec C; double C_chi2 = 0;        
+        vec S; double S_chi2 = 0;    
+
+        // now with the logical decisions....
+        if(R_chi2 < G_chi2) {  // case 1
+            if(B_chi2 < R_chi2) {
+                W = R; W_chi2 = R_chi2;
+            }
+            else {
+                E_chi2 = nm_val(E);
+                if(E_chi2 < B_chi2) {
+                    W = E; W_chi2 = E_chi2;   
+                }
+                else {
+                    W = R; W_chi2 = R_chi2;
+                }        
+            }
+        }
+        else {  // case 2
+            if(R_chi2 < W_chi2) {
+                W = R; W_chi2 = R_chi2;
+            }
+            vec C1 = W.midpoint(M); double C1_chi2 = nm_val(C1);
+            vec C2 = M.midpoint(R); double C2_chi2 = nm_val(C2);
+            if(C1_chi2 < C2_chi2) { C = C1; C_chi2 = C1_chi2; }
+            else                  { C = C2; C_chi2 = C2_chi2; }
+        
+            if(C_chi2 < W_chi2) {
+                W = C; W_chi2 = C_chi2;
+            }
+            else {
+                S = B.midpoint(W); S_chi2 = nm_val(S);
+                W = S; W_chi2 = S_chi2;
+                G = M; G_chi2 = M_chi2;
+            }
+        }
+        nmvec.at(0) = B; chi2vec.at(0) = B_chi2;
+        nmvec.at(1) = G; chi2vec.at(1) = G_chi2;
+        nmvec.at(5) = W; chi2vec.at(5) = W_chi2;
+    
+        std::cout << std::endl << "finished iteration # " << iter << "/" << itermax << std::endl << std::endl;
+        
+        // end of logical loop
+    }
+    //////////////////////////////////////////////////////////////////
+    Run(nmvec.at(0).at(0), nmvec.at(0).at(1), nmvec.at(0).at(2), nmvec.at(0).at(3), nmvec.at(0).at(4));
+}
+
