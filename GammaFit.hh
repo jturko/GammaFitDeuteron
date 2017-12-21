@@ -39,9 +39,9 @@ public:
 
     void PrintParameters() {
         std::cout << "from GammaFit class... " << std::endl;
-        std::cout << "   resolution (%) = " << fParameters[0] << std::endl;
-        std::cout << "   gain           = " << fParameters[1] << " keVee/channel" << std::endl;
-        std::cout << "   offset         = " << fParameters[2] << " keVee " << std::endl;
+        std::cout << "   resolution = " << 100.*fParameters[0] << " %" << std::endl;
+        std::cout << "   gain       = " << fParameters[1] << " keVee/channel" << std::endl;
+        std::cout << "   offset     = " << fParameters[2] << " keVee " << std::endl;
     }
 
     void Sort() {
@@ -82,17 +82,7 @@ public:
         return fChi2;
     }
 
-    void Draw() {
-        if(fExpHist) fExpHist->SetLineColor(kBlack);
-        if(fSimHist) fSimHist->SetLineColor(kRed);
-        else { std::cout << "no hists sorted yet!" << std::endl; return; }
-        fExpHist->GetXaxis()->SetRangeUser(fCutoffLow-30,fCutoffHigh+150);
-        double ymax = 2*fExpHist->GetBinContent(fExpHist->GetMaximumBin());
-        fExpHist->GetYaxis()->SetRangeUser(0.1,ymax);
-
-        fExpHist->Draw();
-        fSimHist->Draw("same");   
-    }
+    void Draw();
 
     void SetCutoffHigh(double cut) { fCutoffHigh = cut; }
     void SetCutoffLow(double cut) { fCutoffLow = cut; }
@@ -162,5 +152,7 @@ public:
 
     int fSimMaxEntry;
 
+    TLine * fLineLow;
+    TLine * fLineHigh;
 
 };

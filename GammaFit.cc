@@ -19,11 +19,14 @@ GammaFit::GammaFit(int cal, std::string source) :
     fEkinVector(NULL),
     fPtypeVector(NULL),
     fEvtTimeBranch(NULL),
-    fEvtTime(0)
+    fEvtTime(0),
+    fLineLow(NULL),
+    fLineHigh(NULL)
 {
-    fBinNum  = 1000;
-    fBinHigh = 5000;
+    fBinNum  = 250;
     fBinLow  = 0; 
+    fBinHigh = 5000;
+    
     fSimMaxEntry = 250000;
 
     //std::string path = "~/data/testcan_source_raw/cal" + std::to_string(fCal) + "/" + fSource + ".root";
@@ -65,7 +68,7 @@ GammaFit::GammaFit(int cal, std::string source) :
     fElectronCoeff[0] = 1; fElectronCoeff[1] = 0; fElectronCoeff[2] = 0; fElectronCoeff[3] = 0;  
      
     // these are the three parameters that we are going to use to minimize the chi2
-    fResolution = 0.5;
+    fResolution = 0.1;
     fGain = 0.5;
     fOffset = 0;
     
@@ -76,14 +79,38 @@ GammaFit::GammaFit(int cal, std::string source) :
     SetParameters(fParameters);
 
     fCutoffHigh = 5000;
-    if(fSource == "24Na") { fCutoffLow = 500; fCutoffHigh = 3000; }
-    else if(fSource == "137Cs") { fCutoffLow = 300; fCutoffHigh = 700; }
-    else if(fSource == "241Am"||fSource == "241Am_1"||fSource=="241Am_2"||fSource=="241Am_3") { fCutoffLow = 30; fCutoffHigh = 100; fBinNum = 10000; }
+    if(fSource == "24Na") { 
+        fCutoffLow = 1800;  fCutoffHigh = 3200; 
+    }
+    else if(fSource == "24NaLow") { 
+        fCutoffLow = 900;  fCutoffHigh = 1600; 
+    }
+    else if(fSource == "137Cs") { 
+        fCutoffLow = 300;   fCutoffHigh = 700; 
+    }
+    else if(fSource == "241Am"||fSource == "241Am_1"||fSource=="241Am_2"||fSource=="241Am_3") { 
+        fCutoffLow = 30;    fCutoffHigh = 100;   
+        fBinNum = 1000; 
+    }
     else fCutoffLow = 0;
+    //if(fSource == "241Am" && fCal == 0) fCutoffLow = 50;
     
-    if(fSource == "241Am" && fCal == 0) fCutoffLow = 50;
+
+    if     (fCal == 0 && fSource == "24NaLow") { 
+        fResolution = 0.22; fGain = 0.26; fOffset = 0;
+    }
+    else if(fCal == 0 && fSource == "24Na") { 
+        fResolution = 0.22; fGain = 0.26; fOffset = 0;
+    }
     
-    std::cout << "Source: " << fSource << " ; cal: " << fCal << std::endl;
+    else if(fCal == 3 && fSource == "24NaLow") { 
+        fResolution = 0.2; fGain = 0.3; fOffset = 0;
+    }
+    else if(fCal == 3 && fSource == "24Na") { 
+        fResolution = 0.2; fGain = 0.3; fOffset = 0;
+    }
+    
+    std::cout << "Source: " << fSource << "\tCal: " << fCal << "\tCuttoffs: (" << fCutoffLow << "," << fCutoffHigh << ")" << std::endl;
 }
 
 GammaFit::~GammaFit() {}
@@ -232,5 +259,28 @@ void GammaFit::Sort(double * par)
     std::string title = fSource + " cal " + std::to_string(fCal) + " ; Chi2 = " + std::to_string(DoChi2());
     fExpHist->SetTitle(title.c_str());
 
+}
+
+void GammaFit::Draw() 
+{
+    if(fExpHist) fExpHist->SetLineColor(kBlack);
+    if(fSimHist) fSimHist->SetLineColor(kRed);
+    else { std::cout << "no hists sorted yet!" << std::endl; return; }
+    fExpHist->GetXaxis()->SetRangeUser(fCutoffLow-30,fCutoffHigh+150);
+    double ymax = 2*fExpHist->GetBinContent(fExpHist->GetMaximumBin());
+    fExpHist->GetYaxis()->SetRangeUser(0.1,ymax);
+
+    fExpHist->Draw();
+    fSimHist->Draw("same");
+
+    if(fLineLow) delete fLineLow;
+    fLineLow = new TLine(fCutoffLow,0,fCutoffLow,ymax);
+    fLineLow->SetLineColor(kBlue);
+    fLineLow->Draw("same");
+    
+    if(fLineHigh) delete fLineHigh;
+    fLineHigh = new TLine(fCutoffHigh,0,fCutoffHigh,ymax);
+    fLineHigh->SetLineColor(kBlue);
+    fLineHigh->Draw("same");
 }
 
