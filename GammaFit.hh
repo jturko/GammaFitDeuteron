@@ -39,24 +39,21 @@ public:
 
     void PrintParameters() {
         std::cout << "from GammaFit class... " << std::endl;
-        std::cout << "      A = " << fParameters[0] << std::endl;
-        std::cout << "      B = " << fParameters[1] << std::endl;
-        std::cout << "      C = " << fParameters[2] << std::endl;
-        std::cout << "   gain = " << fParameters[3] << " keVee/channel" << std::endl;
-        std::cout << " offset = " << fParameters[4] << " keVee " << std::endl;
+        std::cout << "   resolution (%) = " << fParameters[0] << std::endl;
+        std::cout << "   gain           = " << fParameters[1] << " keVee/channel" << std::endl;
+        std::cout << "   offset         = " << fParameters[2] << " keVee " << std::endl;
     }
 
+    void Sort() {
+        Sort(fResolution,fGain,fOffset);
+    }
     void Sort(double * par);
-    void Sort(double A=0.1, double B=0.05, double C=1e-4, double gain=0.5, double offset=0.);
+    void Sort(double resolution, double gain, double offset);
 
     void SetParameters(double * par);
 
     double LightOutput(double E, double * par) {
-        return ( par[0]*E-par[1]*(1.0-TMath::Exp(-par[2]*TMath::Power(E,par[3]))) );
-        //return ( fLightOffset/1000. + par[0]*E-par[1]*(1.0-TMath::Exp(-par[2]*TMath::Power(E,par[3]))) );
-    }
-    double Resolution(double E, double * par) {
-        return (E*TMath::Sqrt(TMath::Power(par[0],2)+TMath::Power(par[1],2)/E+TMath::Power(par[2]/E,2)))/(2.*TMath::Sqrt(2.*TMath::Log(2.))) ;
+        return ( par[0]*E - par[1]*(1.0-TMath::Exp(-par[2]*TMath::Power(E,par[3]))) );
     }
 
     void ApplyCutoffLow(double cutoff, std::string str) {
@@ -144,8 +141,9 @@ public:
     double fAlphaCoeff[4];
     double fBeCoeff[4];
     double fBCoeff[4];
-    double fSmearingCoeff[3];
-    double fParameters[5];
+    double fParameters[3];
+    
+    double fResolution;
     double fGain;
     double fOffset;
 

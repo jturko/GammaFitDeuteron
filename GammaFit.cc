@@ -51,7 +51,7 @@ GammaFit::GammaFit(int cal, std::string source) :
     //fSimTree->SetBranchAddress("eKinVector",&fEkinVector,&fEkinBranch);
     //fSimTree->SetBranchAddress("particleTypeVector",&fPtypeVector,&fPtypeBranch);
     //fSimTree->SetBranchAddress("time",&fEvtTime,&fEvtTimeBranch);
-    fSimTree->SetBranchAddress("posz",&fEvtTime);
+    fSimTree->SetBranchAddress("posz",&fEvtTime); // what the fuck is this about?
     fSimEntries = fSimTree->GetEntries();
     
     fProtonCoeff[0] = 0.74; fProtonCoeff[1] = 3.2; fProtonCoeff[2] = 0.20; fProtonCoeff[3] = 0.97;
@@ -60,18 +60,18 @@ GammaFit::GammaFit(int cal, std::string source) :
     fAlphaCoeff[0] = 0.14; fAlphaCoeff[1] = 0.59; fAlphaCoeff[2] = 0.065; fAlphaCoeff[3] = 1.01;
     fBeCoeff[0] = 0.0821; fBeCoeff[1] = 0.0; fBeCoeff[2] = 0.0; fBeCoeff[3] = 0.0;
     fBCoeff[0] = 0.0375; fBCoeff[1] = 0.0; fBCoeff[2] = 0.0; fBCoeff[3] = 0.0;
-    fElectronCoeff[0] = 1; fElectronCoeff[1] = 0; fElectronCoeff[2] = 0; fElectronCoeff[3] = 0;    
-    
-    //
-    fSmearingCoeff[0] = 0.1; fSmearingCoeff[1] = 0.05; fSmearingCoeff[2] = 1e-4;
+
+    // these should be the only parameters that actually matter...
+    fElectronCoeff[0] = 1; fElectronCoeff[1] = 0; fElectronCoeff[2] = 0; fElectronCoeff[3] = 0;  
+     
+    // these are the three parameters that we are going to use to minimize the chi2
+    fResolution = 0.5;
     fGain = 0.5;
     fOffset = 0;
     
-    fParameters[0] = fSmearingCoeff[0];
-    fParameters[1] = fSmearingCoeff[1]; 
-    fParameters[2] = fSmearingCoeff[2];
-    fParameters[3] = fGain;
-    fParameters[4] = fOffset;
+    fParameters[0] = fResolution;
+    fParameters[1] = fGain;
+    fParameters[2] = fOffset;
     
     SetParameters(fParameters);
 
@@ -90,27 +90,21 @@ GammaFit::~GammaFit() {}
 
 void GammaFit::SetParameters(double * par)
 {
-    fSmearingCoeff[0] = par[0];
-    fSmearingCoeff[1] = par[1];
-    fSmearingCoeff[2] = par[2];
-    fGain             = par[3];
-    fOffset           = par[4];
+    fResolution = par[0];
+    fGain       = par[1];
+    fOffset     = par[2];
  
     fParameters[0] = par[0];
     fParameters[1] = par[1];
     fParameters[2] = par[2];
-    fParameters[3] = par[3];
-    fParameters[4] = par[4];
 }
 
-void GammaFit::Sort(double A, double B, double C, double gain, double offset)
+void GammaFit::Sort(double resolution, double gain, double offset)
 {
-    double par[5];
-    par[0] = A;
-    par[1] = B;
-    par[2] = C;
-    par[3] = gain;
-    par[4] = offset;
+    double par[3];
+    par[0] = resolution;
+    par[1] = gain;
+    par[2] = offset;
     
     Sort(par);
 }
@@ -127,8 +121,10 @@ void GammaFit::Sort(double * par)
     fSimHist = new TH1F("fSimHist","fSimHist",fBinNum,fBinLow,fBinHigh); 
     int nHits = 0;
     double light = 0.;
+    double sigma = 0.;
     double centroidEkin = 0.;    
     double centroidEres = 0.;    
+    double sig_to_fwhm = (2*TMath::Sqrt(2*TMath::Log(2)));
     
     int counter = 0;
 
@@ -149,7 +145,7 @@ void GammaFit::Sort(double * par)
         {
             if(fPtypeVector->at(j) == 2 || fPtypeVector->at(j) == 3) {
                 //centroidEkin = fEkinVector->at(j);
-                //centroidEres = fEkinVector->at(j)-fEdepVector->at(j);
+                //centroidEres = fEkinVector->at(j)-fEdepVector->at(j); //  this should be equivalent to calling the light yield function
                 centroidEkin = LightOutput(fEkinVector->at(j), fElectronCoeff);
                 centroidEres = LightOutput(fEkinVector->at(j)-fEdepVector->at(j), fElectronCoeff);
             }
@@ -183,15 +179,17 @@ void GammaFit::Sort(double * par)
             } 
 
             if(centroidEkin>0.){
-                light += 1000.*fRandom.Gaus(centroidEkin, Resolution(centroidEkin,fSmearingCoeff));
+                sigma = (fResolution*centroidEkin) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
+                light += 1000.*fRandom.Gaus(centroidEkin, sigma);
             }
             if(centroidEres>0.){
-                light -= 1000.*fRandom.Gaus(centroidEres, Resolution(centroidEres,fSmearingCoeff));
+                sigma = (fResolution*centroidEres) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
+                light -= 1000.*fRandom.Gaus(centroidEres, sigma);
             } 
         }//end scatters loop       
         
         //std::cout << "fEvtTime = " << fEvtTime << " vector size = " << fEkinVector->size() << std::endl;    
-        if(light>0. && fEvtTime < 1e10) {
+        if(light>0.) {
             fSimHist->Fill(light);
         }
     }//end event loop
@@ -216,7 +214,7 @@ void GammaFit::Sort(double * par)
         if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000) fExpHist->Fill(val);
         //if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000 && fExpPSDVector.at(i)>6000) fExpHist->Fill(val);
     }
-    fExpHist->Scale(10000/fExpHist->Integral());
+    fExpHist->Scale(10000./fExpHist->Integral());
     
     fExpHist->SetLineColor(kBlack);    
     fSimHist->SetLineColor(kRed);    
