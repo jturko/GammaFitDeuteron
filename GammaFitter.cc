@@ -127,8 +127,8 @@ void GammaFitter::NelderMead(double A, double B, double C, double gain, double o
     double A_inc = 0.02;
     double B_inc = 0.02;
     double C_inc = 0.001;
-    double gain_inc = 0.01;
-    double offset_inc = 5;
+    double gain_inc = 0.05;
+    double offset_inc = 50;
 
     //    ( A   , B    , C     , a1   , a2  , a3  , a4   , carbon)
     vec v1(A,B,C,gain,offset);

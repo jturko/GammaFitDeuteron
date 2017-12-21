@@ -17,7 +17,9 @@ GammaFit::GammaFit(int cal, std::string source) :
     fPtypeBranch(NULL),
     fEdepVector(NULL),
     fEkinVector(NULL),
-    fPtypeVector(NULL)
+    fPtypeVector(NULL),
+    fEvtTimeBranch(NULL),
+    fEvtTime(0)
 {
     fBinNum  = 1000;
     fBinHigh = 5000;
@@ -35,14 +37,21 @@ GammaFit::GammaFit(int cal, std::string source) :
         fExpTree->GetEntry(i);
         UInt_t val = fExpValue[0];
         fExpValueVector.push_back(val);
+        val = fExpValue[2];
+        fExpPSDVector.push_back(val);
     }
 
     std::string name = "../G4_RAW/" + fSource + ".root";
     fSimFile = TFile::Open(name.c_str());     
     fSimTree = (TTree*)(fSimFile->Get("ntuple/ntuple")); 
-    fSimTree->SetBranchAddress("eDepVector",&fEdepVector,&fEdepBranch);
-    fSimTree->SetBranchAddress("eKinVector",&fEkinVector,&fEkinBranch);
-    fSimTree->SetBranchAddress("particleTypeVector",&fPtypeVector,&fPtypeBranch);
+    fSimTree->SetBranchAddress("eDepVector",&fEdepVector);
+    fSimTree->SetBranchAddress("eKinVector",&fEkinVector);
+    fSimTree->SetBranchAddress("particleTypeVector",&fPtypeVector);
+    //fSimTree->SetBranchAddress("eDepVector",&fEdepVector,&fEdepBranch);
+    //fSimTree->SetBranchAddress("eKinVector",&fEkinVector,&fEkinBranch);
+    //fSimTree->SetBranchAddress("particleTypeVector",&fPtypeVector,&fPtypeBranch);
+    //fSimTree->SetBranchAddress("time",&fEvtTime,&fEvtTimeBranch);
+    fSimTree->SetBranchAddress("posz",&fEvtTime);
     fSimEntries = fSimTree->GetEntries();
     
     fProtonCoeff[0] = 0.74; fProtonCoeff[1] = 3.2; fProtonCoeff[2] = 0.20; fProtonCoeff[3] = 0.97;
@@ -123,15 +132,17 @@ void GammaFit::Sort(double * par)
     
     int counter = 0;
 
-    //for(int i=0; i<fSimEntries; i++)
-    for(int i=0; i<fSimMaxEntry; i++)
+    for(int i=0; i<fSimEntries; i++)
+    //for(int i=0; i<fSimMaxEntry; i++)
     {
         counter++;
-        if( counter%50000==0 ) std::cout << "sorting evt " << counter << "/" << fSimEntries << "; " << double(counter)/double(fSimMaxEntry)*100 << "% complete \r"  << std::flush; 
+        if( counter%50000==0 ) std::cout << "sorting evt " << counter << "/" << fSimEntries << "; " << double(counter)/double(fSimEntries)*100 << "% complete \r"  << std::flush; 
      
-        fEdepBranch->GetEntry(i);   
-        fEkinBranch->GetEntry(i);   
-        fPtypeBranch->GetEntry(i);   
+        //fEdepBranch->GetEntry(i);   
+        //fEkinBranch->GetEntry(i);   
+        //fPtypeBranch->GetEntry(i);   
+        //fEvtTimeBranch->GetEntry(i);
+        fSimTree->GetEntry(i);
         nHits = fEdepVector->size();
         light = 0.;
         for(int j=0; j<nHits; j++)
@@ -178,7 +189,11 @@ void GammaFit::Sort(double * par)
                 light -= 1000.*fRandom.Gaus(centroidEres, Resolution(centroidEres,fSmearingCoeff));
             } 
         }//end scatters loop       
-        if(light>0.) fSimHist->Fill(light);
+        
+        //std::cout << "fEvtTime = " << fEvtTime << " vector size = " << fEkinVector->size() << std::endl;    
+        if(light>0. && fEvtTime < 1e10) {
+            fSimHist->Fill(light);
+        }
     }//end event loop
 
 
@@ -197,8 +212,11 @@ void GammaFit::Sort(double * par)
         //if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000) fExpHist->Fill(val);
         val = fExpValueVector.at(i)*fGain + fOffset;
         val = fRandom.Gaus(val,0.2*fExpHist->GetBinWidth(0));
+        
         if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000) fExpHist->Fill(val);
+        //if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000 && fExpPSDVector.at(i)>6000) fExpHist->Fill(val);
     }
+    fExpHist->Scale(10000/fExpHist->Integral());
     
     fExpHist->SetLineColor(kBlack);    
     fSimHist->SetLineColor(kRed);    

@@ -129,9 +129,13 @@ public:
     std::vector<double> * fEkinVector;
     std::vector<int> * fPtypeVector;
 
+    double fEvtTime;
+    TBranch * fEvtTimeBranch;
+
     TBranch * fExpValueBranch;
     UInt_t fExpValue[6];
     std::vector<UInt_t> fExpValueVector;
+    std::vector<UInt_t> fExpPSDVector;
 
     double fProtonCoeff[4];
     double fElectronCoeff[4];
