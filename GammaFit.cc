@@ -23,7 +23,7 @@ GammaFit::GammaFit(int cal, std::string source) :
     fLineLow(NULL),
     fLineHigh(NULL)
 {
-    fBinNum  = 250;
+    fBinNum  = 500;
     fBinLow  = 0; 
     fBinHigh = 5000;
     
@@ -66,17 +66,6 @@ GammaFit::GammaFit(int cal, std::string source) :
 
     // these should be the only parameters that actually matter...
     fElectronCoeff[0] = 1; fElectronCoeff[1] = 0; fElectronCoeff[2] = 0; fElectronCoeff[3] = 0;  
-     
-    // these are the three parameters that we are going to use to minimize the chi2
-    fResolution = 0.1;
-    fGain = 0.5;
-    fOffset = 0;
-    
-    fParameters[0] = fResolution;
-    fParameters[1] = fGain;
-    fParameters[2] = fOffset;
-    
-    SetParameters(fParameters);
 
     fCutoffHigh = 5000;
     if(fSource == "24Na") { 
@@ -92,23 +81,36 @@ GammaFit::GammaFit(int cal, std::string source) :
         fCutoffLow = 30;    fCutoffHigh = 100;   
         fBinNum = 1000; 
     }
+    else if(fSource == "60Co") {
+        fCutoffLow = 700;   fCutoffHigh = 1500; 
+    }
     else fCutoffLow = 0;
     //if(fSource == "241Am" && fCal == 0) fCutoffLow = 50;
     
-
-    if     (fCal == 0 && fSource == "24NaLow") { 
-        fResolution = 0.22; fGain = 0.26; fOffset = 0;
-    }
-    else if(fCal == 0 && fSource == "24Na") { 
-        fResolution = 0.22; fGain = 0.26; fOffset = 0;
+    if(fCal == 0) {
+        if(     fSource == "24Na" || fSource == "24NaLow") {
+            fResolution = 0.22; fGain = 0.26; fOffset = 0; }
+        else if(fSource == "137Cs") {
+            fResolution = 0.50; fGain = 0.26; fOffset = 0; }
+        else if(fSource == "60Co") {
+            fResolution = 0.10; fGain = 0.26; fOffset = 0; }
+        else if(fSource == "241Am") {
+            fResolution = 0.75; fGain = 0.26; fOffset = 5; }
     }
     
-    else if(fCal == 3 && fSource == "24NaLow") { 
-        fResolution = 0.2; fGain = 0.3; fOffset = 0;
+    else if(fCal == 3) { 
+        if(     fSource == "24Na" || fSource == "24NaLow") {
+            fResolution = 0.20; fGain = 0.30; fOffset = 0; }
+        else if(fSource == "137Cs") {
+            fResolution = 0.25; fGain = 0.30; fOffset = 0; }
+        else if(fSource == "60Co") {
+            fResolution = 0.10; fGain = 0.30; fOffset = 0; }
     }
-    else if(fCal == 3 && fSource == "24Na") { 
-        fResolution = 0.2; fGain = 0.3; fOffset = 0;
-    }
+    
+    fParameters[0] = fResolution;
+    fParameters[1] = fGain;
+    fParameters[2] = fOffset;
+    SetParameters(fParameters);
     
     std::cout << "Source: " << fSource << "\tCal: " << fCal << "\tCuttoffs: (" << fCutoffLow << "," << fCutoffHigh << ")" << std::endl;
 }
@@ -229,6 +231,7 @@ void GammaFit::Sort(double * par)
     double val = 0;
     for(int i=0; i<fExpEntries; i++) 
     {
+        if(fExpValueVector.at(i) <= 0 || fExpPSDVector.at(i) < 5000) continue;
         //fExpTree->GetEntry(i);
         //val = double(fExpValue[1])*fGain + fOffset;
         //if(fExpValue[1]>10 && fExpValue[1]<15000) fExpHist->Fill(val);
