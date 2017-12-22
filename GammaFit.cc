@@ -79,7 +79,11 @@ GammaFit::GammaFit(int cal, std::string source) :
     }
     else if(fSource == "241Am"||fSource == "241Am_1"||fSource=="241Am_2"||fSource=="241Am_3") { 
         fCutoffLow = 30;    fCutoffHigh = 100;   
-        fBinNum = 1000; 
+        fBinNum = 2000; 
+    }
+    else if(fSource == "241AmEdge") {
+        fCutoffLow = 5;     fCutoffHigh = 25;
+        fBinNum = 2000; 
     }
     else if(fSource == "60Co") {
         fCutoffLow = 700;   fCutoffHigh = 1500; 
@@ -97,7 +101,15 @@ GammaFit::GammaFit(int cal, std::string source) :
         else if(fSource == "241Am") {
             fResolution = 0.75; fGain = 0.26; fOffset = 5; }
     }
-    
+    else if(fCal == 1) { 
+        if(     fSource == "137Cs") {
+            fResolution = 0.25; fGain = 0.045; fOffset = 5; fCutoffHigh = 600; }
+        else if(fSource == "241Am" || fSource == "241AmEdge") {
+            fResolution = 0.75; fGain = 0.045; fOffset = 5; }
+    }
+    else if(fCal == 2) { 
+            fResolution = 0.80; fGain = 0.020; fOffset = 0; fCutoffHigh = 100; fCutoffLow = 15; 
+    }
     else if(fCal == 3) { 
         if(     fSource == "24Na" || fSource == "24NaLow") {
             fResolution = 0.20; fGain = 0.30; fOffset = 0; }
