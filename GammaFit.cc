@@ -78,7 +78,7 @@ GammaFit::GammaFit(int cal, std::string source) :
         fCutoffLow = 300;   fCutoffHigh = 700; 
     }
     else if(fSource == "241Am"||fSource == "241Am_1"||fSource=="241Am_2"||fSource=="241Am_3") { 
-        fCutoffLow = 40;    fCutoffHigh = 100;   
+        fCutoffLow = 40;    fCutoffHigh = 90;   
         fBinNum = 5000; 
     }
     else if(fSource == "241AmEdge") {
@@ -108,7 +108,7 @@ GammaFit::GammaFit(int cal, std::string source) :
             fResolution = 0.75; fGain = 0.045; fOffset = 5; }
     }
     else if(fCal == 2) { 
-            fResolution = 0.80; fGain = 0.020; fOffset = 0; fCutoffHigh = 100; fCutoffLow = 15; 
+            fResolution = 0.65; fGain = 0.020; fOffset = 0; fCutoffHigh = 90; fCutoffLow = 30; 
     }
     else if(fCal == 3) { 
         if(     fSource == "24Na" || fSource == "24NaLow") {
@@ -218,16 +218,22 @@ void GammaFit::Sort(double * par)
                 centroidEkin = 0.; 
                 centroidEres = 0.; 
             } 
+            light = light + centroidEkin - centroidEres;
 
-            if(centroidEkin>0.){
-                sigma = (fResolution*centroidEkin) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
-                light += 1000.*fRandom.Gaus(centroidEkin, sigma);
-            }
-            if(centroidEres>0.){
-                sigma = (fResolution*centroidEres) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
-                light -= 1000.*fRandom.Gaus(centroidEres, sigma);
-            } 
-        }//end scatters loop       
+            //if(centroidEkin>0.){
+            //    sigma = (fResolution*centroidEkin) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
+            //    light += 1000.*fRandom.Gaus(centroidEkin, sigma);
+            //}
+            //if(centroidEres>0.){
+            //    sigma = (fResolution*centroidEres) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM`
+            //    light -= 1000.*fRandom.Gaus(centroidEres, sigma);
+            //} 
+        }//end scatters loop 
+        if(light > 0) {
+            sigma = (fResolution*light) / sig_to_fwhm;  // (dL/L)*L/2.35 w/ dL as FWHM
+            light = 1000.*fRandom.Gaus(light,sigma);
+            fSimHist->Fill(light);
+        }      
         
         //std::cout << "fEvtTime = " << fEvtTime << " vector size = " << fEkinVector->size() << std::endl;    
         if(light>0.) {
