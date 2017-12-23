@@ -34,16 +34,29 @@ GammaFitter::GammaFitter(int cal, std::string source1, std::string source2, std:
     InitializeParameters();
 }
 
+GammaFitter::GammaFitter(int cal, std::string source1, std::string source2, std::string source3, std::string source4)
+{
+    fCanvas = NULL;
+    SetNextGammaFit(cal,source1);
+    SetNextGammaFit(cal,source2);
+    SetNextGammaFit(cal,source3);
+    SetNextGammaFit(cal,source4);
+    InitializeParameters();
+}
+
 void GammaFitter::InitializeParameters()
 {
-    fParameters[0] = 0.1;
-    fParameters[1] = 0.05;
-    fParameters[2] = 1e-4;
-    fParameters[3] = 0.6;
-    fParameters[4] = 0;
+    if(GetNumberOfGammaFits() > 0) {
+        fParameters[0] = fGammaFitVector.at(0).fResolution;
+        fParameters[1] = fGammaFitVector.at(0).fGain;
+        fParameters[2] = fGammaFitVector.at(0).fOffset;
+        std::cout << "parameters initialized to (" << fParameters[0] << "," << fParameters[1] << "," << fParameters[2] << ")" << std::endl;
+    }    
     
     fSum = 0;
     fSum2 = 0;
+
+    fIterMax = 50;
 }
 
 void GammaFitter::Draw()
@@ -64,9 +77,10 @@ void GammaFitter::Draw()
     }
 }
 
-void GammaFitter::Run(double A, double B, double C, double gain, double offset)
+//void GammaFitter::Run(double A, double B, double C, double gain, double offset)
+void GammaFitter::Run(double resolution, double gain, double offset)
 {
-    SetParameters(A,B,C,gain,offset);
+    SetParameters(resolution,gain,offset);
     PrintParameters();
     if(!fCanvas) {
         fCanvas = new TCanvas();
@@ -115,7 +129,8 @@ void GammaFitter::DrawToFile(std::string input)
 
 }
 
-void GammaFitter::NelderMead(double A, double B, double C, double gain, double offset, int itermax)
+//void GammaFitter::NelderMead(double A, double B, double C, double gain, double offset, int itermax)
+void GammaFitter::NelderMead(double resolution, double gain, double offset, int itermax)
 {
     std::cout << "starting Nelder Mead method... " << std::endl;
     
@@ -124,27 +139,21 @@ void GammaFitter::NelderMead(double A, double B, double C, double gain, double o
     //double C_inc = 1e-4;
     //double gain_inc = 0.5;
     //double offset_inc = 100;
-    double A_inc = 0.02;
-    double B_inc = 0.02;
-    double C_inc = 0.001;
-    double gain_inc = 0.05;
-    double offset_inc = 50;
+    double res_inc = 0.02;
+    double gain_inc = 0.01;
+    double offset_inc = 1;
 
     //    ( A   , B    , C     , a1   , a2  , a3  , a4   , carbon)
-    vec v1(A,B,C,gain,offset);
-    vec v2(v1); v2.set(0,v2.at(0)+A_inc);
-    vec v3(v1); v3.set(1,v3.at(1)+B_inc);
-    vec v4(v1); v4.set(2,v4.at(2)+C_inc);
-    vec v5(v1); v5.set(3,v5.at(3)+gain_inc);
-    vec v6(v1); v6.set(4,v6.at(4)+offset_inc);
+    vec v1(resolution,gain,offset);
+    vec v2(v1); v2.set(0,v1.at(0)+res_inc);
+    vec v3(v1); v3.set(1,v1.at(1)+gain_inc);
+    vec v4(v1); v4.set(2,v1.at(2)+offset_inc);
 
     std::vector<vec> nmvec;
     nmvec.push_back(v1);
     nmvec.push_back(v2);
     nmvec.push_back(v3);
     nmvec.push_back(v4);
-    nmvec.push_back(v5);
-    nmvec.push_back(v6);
 
     std::cout << "calculating chi2's for the initial simplex..." << std::endl;
     std::vector<double> chi2vec;
@@ -161,14 +170,14 @@ void GammaFitter::NelderMead(double A, double B, double C, double gain, double o
 
         std::vector<vec> temp_par;
         std::vector<double> temp_chi2;
-        temp_par.resize(6);
-        temp_chi2.resize(6);
+        temp_par.resize(4);
+        temp_chi2.resize(4);
 
         // reordering...
         double test = 1e100;
         int val = 0;
-        for(int i=0; i<6; i++) {
-            for(int j=0; j<6; j++) {
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
                 if(chi2vec.at(j) < test) {
                     test = chi2vec.at(j);
                     temp_chi2.at(i) = test;
@@ -183,17 +192,17 @@ void GammaFitter::NelderMead(double A, double B, double C, double gain, double o
         chi2vec = temp_chi2;
 
         std::cout << "printing the reordered variables..." << std::endl;
-        for(int i=0; i<6; i++) {
+        for(int i=0; i<4; i++) {
             std::cout << " chi2 = " << chi2vec.at(i);
             std::cout << " pars = ";
-            for(int j=0; j<4; j++) std::cout << nmvec.at(i).at(j) << " , "; std::cout << nmvec.at(i).at(4);
+            for(int j=0; j<2; j++) std::cout << nmvec.at(i).at(j) << " , "; std::cout << nmvec.at(i).at(2);
             std::cout << std::endl;
         }
         
     
         vec B(nmvec.at(0)); double B_chi2 = chi2vec.at(0);
         vec G(nmvec.at(1)); double G_chi2 = chi2vec.at(1);
-        vec W(nmvec.at(5)); double W_chi2 = chi2vec.at(5);
+        vec W(nmvec.at(3)); double W_chi2 = chi2vec.at(3);
         vec M = B.midpoint(G); double M_chi2 = nm_val(M);
         vec R = M.scalar_multiply(2.); R.subtract(W); double R_chi2 = nm_val(R);
         vec E = R.scalar_multiply(2.); E.subtract(M); double E_chi2 = 0;
@@ -235,13 +244,18 @@ void GammaFitter::NelderMead(double A, double B, double C, double gain, double o
         }
         nmvec.at(0) = B; chi2vec.at(0) = B_chi2;
         nmvec.at(1) = G; chi2vec.at(1) = G_chi2;
-        nmvec.at(5) = W; chi2vec.at(5) = W_chi2;
+        nmvec.at(3) = W; chi2vec.at(3) = W_chi2;
     
         std::cout << std::endl << "finished iteration # " << iter << "/" << itermax << std::endl << std::endl;
         
         // end of logical loop
     }
     //////////////////////////////////////////////////////////////////
-    Run(nmvec.at(0).at(0), nmvec.at(0).at(1), nmvec.at(0).at(2), nmvec.at(0).at(3), nmvec.at(0).at(4));
+    Run(nmvec.at(0).at(0), nmvec.at(0).at(1), nmvec.at(0).at(2));
 }
 
+void GammaFitter::NelderMead() 
+{
+    if(fIterMax < 1) fIterMax = 50;
+    NelderMead(fParameters[0],fParameters[1],fParameters[2],fIterMax);
+}

@@ -1,7 +1,6 @@
 
 #ifndef GAMMAFITTER_H
 #define GAMMAFITTER_H
-#endif
 
 #include "TCanvas.h"
 #include "TH1F.h"
@@ -41,9 +40,13 @@ public:
     GammaFitter(int cal, std::string s1);
     GammaFitter(int cal, std::string s1, std::string s2);
     GammaFitter(int cal, std::string s1, std::string s2, std::string s3);
+    GammaFitter(int cal, std::string s1, std::string s2, std::string s3, std::string s4);
 
     void Draw();
-    void Run(double A=0.1, double B=0.05, double C=1e-4, double gain=0.6, double offset=0);
+    void Run(double resolution, double gain, double offset);
+    void Run() {
+        Run(fParameters[0],fParameters[1],fParameters[2]);
+    }
     
     bool Check(int i) { if(i<=-1||i>=GetNumberOfGammaFits()) return false; else return true; }
     
@@ -78,31 +81,29 @@ public:
     
     void Print() { for(int num=0; num<GetNumberOfGammaFits(); num++) std::cout << "Source = " << fSourceVector.at(num) << std::endl; }
 
-    void SetParameters(double A, double B, double C, double gain, double offset) {
-        fParameters[0] = A;
-        fParameters[1] = B;
-        fParameters[2] = C;
-        fParameters[3] = gain;
-        fParameters[4] = offset;
+    void SetParameters(double resolution, double gain, double offset) {
+        fParameters[0] = resolution;
+        fParameters[1] = gain;
+        fParameters[2] = offset;
         for(int i=0; i<GetNumberOfGammaFits(); i++) fGammaFitVector.at(i).SetParameters(fParameters);
     }
-    void SetParameters(double * par) { // expects a par array w/ 5 elements
-        for(int i=0; i<5; i++) fParameters[i] = par[i];
+    void SetParameters(double * par) { // expects a par array w/ 3 elements
+        for(int i=0; i<3; i++) fParameters[i] = par[i];
         for(int i=0; i<GetNumberOfGammaFits(); i++) fGammaFitVector.at(i).SetParameters(fParameters);
     }
     
     void PrintParameters() { 
         std::cout << "from GammaFitter class... " << std::endl;    
-        std::cout << "      A = " << fParameters[0] << std::endl;
-        std::cout << "      B = " << fParameters[1] << std::endl;
-        std::cout << "      C = " << fParameters[2] << std::endl;
-        std::cout << "   gain = " << fParameters[3] << " keVee/channel" << std::endl;
-        std::cout << " offset = " << fParameters[4] << " keVee" << std::endl;
+        std::cout << " resolution = " << 100.*fParameters[0] << " %" << std::endl;
+        std::cout << "       gain = " << fParameters[1] << " keVee/channel" << std::endl;
+        std::cout << "     offset = " << fParameters[2] << " keVee" << std::endl;
     }
 
     void InitializeParameters();
 
-    void NelderMead(double A=0.1, double B=0.05, double C=1e-4, double gain=0.6, double offset=0, int itermax = 50);
+    //void NelderMead(double A=0.1, double B=0.05, double C=1e-4, double gain=0.6, double offset=0, int itermax = 50);
+    void NelderMead();
+    void NelderMead(double resolution, double gain, double offset, int itermax);
     
     double DoChi2() { 
         fSum = 0.;
@@ -112,7 +113,7 @@ public:
         fSum /= double(GetNumberOfGammaFits());
         fSum2 /= double(GetNumberOfGammaFits());    
     
-        return fSum2; // CHANGE THIS TO SET WHAT WE WILL MINIMIZE [ chi2 or (chi2)^2 ]
+        return fSum; // CHANGE THIS TO SET WHAT WE WILL MINIMIZE [ chi2 or (chi2)^2 ]
     }
         
     double nm_val(double * par) {
@@ -131,11 +132,15 @@ public:
     std::vector<GammaFit> fGammaFitVector;   
     std::vector<std::string> fSourceVector;
 
-    double fParameters[5];   
+    double fParameters[3];   
  
     TCanvas * fCanvas;
     
     double fSum;
     double fSum2;
 
+    int fIterMax;
+
 };
+
+#endif
