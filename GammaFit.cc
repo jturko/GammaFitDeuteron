@@ -23,7 +23,7 @@ GammaFit::GammaFit(int cal, std::string source) :
     fLineLow(NULL),
     fLineHigh(NULL)
 {
-    fBinNum  = 500;
+    fBinNum  = 1000;
     fBinLow  = 0; 
     fBinHigh = 5000;
     
@@ -78,12 +78,12 @@ GammaFit::GammaFit(int cal, std::string source) :
         fCutoffLow = 300;   fCutoffHigh = 700; 
     }
     else if(fSource == "241Am"||fSource == "241Am_1"||fSource=="241Am_2"||fSource=="241Am_3") { 
-        fCutoffLow = 30;    fCutoffHigh = 100;   
-        fBinNum = 2000; 
+        fCutoffLow = 40;    fCutoffHigh = 100;   
+        fBinNum = 5000; 
     }
     else if(fSource == "241AmEdge") {
         fCutoffLow = 5;     fCutoffHigh = 25;
-        fBinNum = 2000; 
+        fBinNum = 5000; 
     }
     else if(fSource == "60Co") {
         fCutoffLow = 700;   fCutoffHigh = 1500; 
@@ -243,7 +243,7 @@ void GammaFit::Sort(double * par)
     double val = 0;
     for(int i=0; i<fExpEntries; i++) 
     {
-        if(fExpValueVector.at(i) <= 0 || fExpPSDVector.at(i) < 5000) continue;
+        //if(fExpValueVector.at(i) <= 0 || fExpPSDVector.at(i) <= 0 ) continue;
         //fExpTree->GetEntry(i);
         //val = double(fExpValue[1])*fGain + fOffset;
         //if(fExpValue[1]>10 && fExpValue[1]<15000) fExpHist->Fill(val);
@@ -256,7 +256,7 @@ void GammaFit::Sort(double * par)
         if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000) fExpHist->Fill(val);
         //if(fExpValueVector.at(i)>10 && fExpValueVector.at(i)<15000 && fExpPSDVector.at(i)>6000) fExpHist->Fill(val);
     }
-    fExpHist->Scale(10000./fExpHist->Integral());
+    //fExpHist->Scale(10000./fExpHist->Integral());
     
     fExpHist->SetLineColor(kBlack);    
     fSimHist->SetLineColor(kRed);    

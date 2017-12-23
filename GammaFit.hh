@@ -2,7 +2,6 @@
 
 #ifndef GAMMAFIT_H
 #define GAMMAFIT_H
-#endif
 
 #include "TCanvas.h"
 #include "TH1F.h"
@@ -156,3 +155,5 @@ public:
     TLine * fLineHigh;
 
 };
+
+#endif
